@@ -4,9 +4,9 @@ create table if not exists daily_records (
   id uuid primary key default gen_random_uuid(),
   record_date date not null,
   bread_key text not null,
-  bag_in integer not null default 0,
-  bake_trays integer not null default 0,
-  stock_trays integer not null default 0,
+  box_in integer not null default 0, -- 今日入库（箱，1箱=4袋）
+  bake_trays integer not null default 0, -- 今日烤量（盘）
+  stock_trays integer not null default 0, -- 结算库存（盘，内部最小单位，显示时换算成 箱+袋+盘）
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (record_date, bread_key)

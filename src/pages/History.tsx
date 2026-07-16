@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchHistoryDates, fetchRecordsForDate } from '../lib/api'
-import { BREADS } from '../lib/breads'
+import { BREADS, formatStock } from '../lib/breads'
 import type { DailyRecord } from '../lib/types'
 
 export default function History() {
@@ -60,9 +60,9 @@ export default function History() {
                   <thead className="bg-slate-50 text-slate-500 text-left">
                     <tr>
                       <th className="px-3 py-2">面包</th>
-                      <th className="px-3 py-2">入库（袋）</th>
+                      <th className="px-3 py-2">入库（箱）</th>
                       <th className="px-3 py-2">烤量（盘）</th>
-                      <th className="px-3 py-2">结算库存（盘）</th>
+                      <th className="px-3 py-2">结算库存</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -71,9 +71,9 @@ export default function History() {
                       return (
                         <tr key={b.key}>
                           <td className="px-3 py-2 font-medium text-slate-700">{b.name}</td>
-                          <td className="px-3 py-2">{rec?.bag_in ?? '—'}</td>
+                          <td className="px-3 py-2">{rec?.box_in ?? '—'}</td>
                           <td className="px-3 py-2">{rec?.bake_trays ?? '—'}</td>
-                          <td className="px-3 py-2">{rec?.stock_trays ?? '—'}</td>
+                          <td className="px-3 py-2">{rec ? formatStock(rec.stock_trays, b) : '—'}</td>
                         </tr>
                       )
                     })}

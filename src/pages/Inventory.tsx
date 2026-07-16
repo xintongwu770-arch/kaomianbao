@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { subDays, format } from 'date-fns'
 import { useDayData } from '../lib/useDayData'
 import { fetchRecordsForDate, todayStr } from '../lib/api'
+import { getBread, formatStock } from '../lib/breads'
+import Stepper from '../components/Stepper'
+import { WARNING_ROW_CLASS, WARNING_TEXT_CLASS, WARNING_LABELS, WARNING_BADGE_CLASS } from '../lib/warningStyle'
 
 interface Edit {
-  bagIn: string
-  bakeTrays: string
+  boxIn: number
+  bakeTrays: number
 }
 
 export default function Inventory() {
@@ -18,13 +21,13 @@ export default function Inventory() {
     if (!loading && rows.length && Object.keys(edits).length === 0) {
       const seed: Record<string, Edit> = {}
       for (const r of rows) {
-        seed[r.key] = { bagIn: String(r.bagIn), bakeTrays: String(r.bakeTrays) }
+        seed[r.key] = { boxIn: r.boxIn, bakeTrays: r.bakeTrays }
       }
       setEdits(seed)
     }
   }, [loading, rows, edits])
 
-  const updateEdit = (key: string, field: keyof Edit, value: string) => {
+  const updateEdit = (key: string, field: keyof Edit, value: number) => {
     setEdits((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }))
   }
 
@@ -37,7 +40,7 @@ export default function Inventory() {
         const yr = yesterdayRecords[r.key]
         next[r.key] = {
           ...next[r.key],
-          bakeTrays: String(yr?.bake_trays ?? 0),
+          bakeTrays: yr?.bake_trays ?? 0,
         }
       }
       return next
@@ -49,7 +52,7 @@ export default function Inventory() {
     setEdits((prev) => {
       const next = { ...prev }
       for (const r of rows) {
-        next[r.key] = { ...next[r.key], bakeTrays: String(Math.round(r.avg7)) }
+        next[r.key] = { ...next[r.key], bakeTrays: Math.round(r.avg7) }
       }
       return next
     })
@@ -62,8 +65,8 @@ export default function Inventory() {
     try {
       const entries = rows.map((r) => ({
         breadKey: r.key,
-        bagIn: Number(edits[r.key]?.bagIn ?? 0) || 0,
-        bakeTrays: Number(edits[r.key]?.bakeTrays ?? 0) || 0,
+        boxIn: edits[r.key]?.boxIn ?? 0,
+        bakeTrays: edits[r.key]?.bakeTrays ?? 0,
       }))
       await saveMany(entries)
       setMessage('保存成功。')
@@ -104,45 +107,49 @@ export default function Inventory() {
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-3 py-2">面包</th>
-              <th className="px-3 py-2">今日入库（袋）</th>
+              <th className="px-3 py-2">今日入库（箱）</th>
               <th className="px-3 py-2">今日烤量（盘）</th>
-              <th className="px-3 py-2">当前库存（盘）</th>
-              <th className="px-3 py-2">近7日均耗</th>
+              <th className="px-3 py-2">当前库存</th>
+              <th className="px-3 py-2">近7日均耗（盘）</th>
               <th className="px-3 py-2">补货建议</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.key} className={r.isWarning ? 'bg-red-50' : ''}>
-                <td className="px-3 py-2 font-medium text-slate-700">
-                  {r.name}
-                  <span className="text-xs text-slate-400 ml-1">(1袋={r.traysPerBag}盘)</span>
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-20 border border-slate-300 rounded px-2 py-1"
-                    value={edits[r.key]?.bagIn ?? '0'}
-                    onChange={(e) => updateEdit(r.key, 'bagIn', e.target.value)}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-20 border border-slate-300 rounded px-2 py-1"
-                    value={edits[r.key]?.bakeTrays ?? '0'}
-                    onChange={(e) => updateEdit(r.key, 'bakeTrays', e.target.value)}
-                  />
-                </td>
-                <td className={`px-3 py-2 font-semibold ${r.isWarning ? 'text-red-600' : 'text-slate-700'}`}>
-                  {r.stockTrays}
-                </td>
-                <td className="px-3 py-2 text-slate-500">{r.avg7.toFixed(1)}</td>
-                <td className="px-3 py-2 text-amber-700">{r.restockBags > 0 ? `补 ${r.restockBags} 袋` : '—'}</td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const bread = getBread(r.key)
+              const rowClass = r.warningTier ? WARNING_ROW_CLASS[r.warningTier] : ''
+              const stockClass = r.warningTier ? WARNING_TEXT_CLASS[r.warningTier] : 'text-slate-700'
+              return (
+                <tr key={r.key} className={rowClass}>
+                  <td className="px-3 py-2 font-medium text-slate-700 align-top">
+                    <div>{r.name}</div>
+                    <div className="text-xs text-slate-400">(1箱=4袋，1袋={r.traysPerBag}盘)</div>
+                    {r.warningTier && (
+                      <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded ${WARNING_BADGE_CLASS[r.warningTier]}`}>
+                        {WARNING_LABELS[r.warningTier]}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Stepper
+                      value={edits[r.key]?.boxIn ?? 0}
+                      onChange={(v) => updateEdit(r.key, 'boxIn', v)}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Stepper
+                      value={edits[r.key]?.bakeTrays ?? 0}
+                      onChange={(v) => updateEdit(r.key, 'bakeTrays', v)}
+                    />
+                  </td>
+                  <td className={`px-3 py-2 font-semibold whitespace-nowrap ${stockClass}`}>
+                    {formatStock(r.stockTrays, bread)}
+                  </td>
+                  <td className="px-3 py-2 text-slate-500">{r.avg7.toFixed(1)}</td>
+                  <td className="px-3 py-2 text-amber-700">{r.restockBoxes > 0 ? `补 ${r.restockBoxes} 箱` : '—'}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { BREADS, getBread } from './breads'
+import { BREADS, getBread, traysPerBox } from './breads'
 import type { DailyRecord } from './types'
 
 export function todayStr(): string {
@@ -57,13 +57,13 @@ export function average(nums: number[]): number {
 export async function upsertRecord(
   date: string,
   breadKey: string,
-  bagIn: number,
+  boxIn: number,
   bakeTrays: number,
 ): Promise<DailyRecord> {
   const client = requireClient()
   const bread = getBread(breadKey)
   const prevStock = await fetchLatestStockBefore(breadKey, date)
-  const stockTrays = prevStock + bagIn * bread.traysPerBag - bakeTrays
+  const stockTrays = prevStock + boxIn * traysPerBox(bread) - bakeTrays
 
   const { data, error } = await client
     .from('daily_records')
@@ -71,7 +71,7 @@ export async function upsertRecord(
       {
         record_date: date,
         bread_key: breadKey,
-        bag_in: bagIn,
+        box_in: boxIn,
         bake_trays: bakeTrays,
         stock_trays: stockTrays,
       },

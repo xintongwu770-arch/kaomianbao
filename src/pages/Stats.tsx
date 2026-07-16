@@ -9,7 +9,7 @@ export default function Stats() {
 
   const totalBake = rows.reduce((sum, r) => sum + r.bakeTrays, 0)
   const totalStock = rows.reduce((sum, r) => sum + r.stockTrays, 0)
-  const warningCount = rows.filter((r) => r.isWarning).length
+  const warningCount = rows.filter((r) => r.warningTier).length
 
   const chartData = [...rows]
     .sort((a, b) => b.bakeTrays - a.bakeTrays)

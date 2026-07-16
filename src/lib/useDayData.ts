@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BREADS } from './breads'
-import type { BreadDayView } from './types'
+import { BREADS, traysPerBox } from './breads'
+import type { BreadDayView, WarningTier } from './types'
 import {
   average,
   fetchLatestStockBefore,
@@ -9,6 +9,15 @@ import {
   todayStr,
   upsertRecord,
 } from './api'
+
+function computeWarningTier(stockTrays: number, avg7: number): WarningTier {
+  if (avg7 <= 0) return null
+  const daysCoverage = stockTrays / avg7
+  if (daysCoverage < 1) return 'day1'
+  if (daysCoverage < 2) return 'day2'
+  if (daysCoverage < 3) return 'day3'
+  return null
+}
 
 export function useDayData(date: string = todayStr()) {
   const [rows, setRows] = useState<BreadDayView[]>([])
@@ -29,24 +38,24 @@ export function useDayData(date: string = todayStr()) {
           ])
           const avg7 = average(recentBakes)
           const existing = todayRecords[bread.key]
-          const bagIn = existing?.bag_in ?? 0
+          const boxIn = existing?.box_in ?? 0
           const bakeTrays = existing?.bake_trays ?? 0
           const stockTrays = existing ? existing.stock_trays : stockBefore
-          const isWarning = avg7 > 0 && stockTrays < avg7
+          const warningTier = computeWarningTier(stockTrays, avg7)
           const target = avg7 * 3
           const shortfall = Math.max(0, target - stockTrays)
-          const restockBags = Math.ceil(shortfall / bread.traysPerBag)
+          const restockBoxes = Math.ceil(shortfall / traysPerBox(bread))
 
           const view: BreadDayView = {
             key: bread.key,
             name: bread.name,
             traysPerBag: bread.traysPerBag,
-            bagIn,
+            boxIn,
             bakeTrays,
             stockTrays,
             avg7,
-            isWarning,
-            restockBags,
+            warningTier,
+            restockBoxes,
           }
           return view
         }),
@@ -64,17 +73,17 @@ export function useDayData(date: string = todayStr()) {
   }, [load])
 
   const save = useCallback(
-    async (breadKey: string, bagIn: number, bakeTrays: number) => {
-      await upsertRecord(date, breadKey, bagIn, bakeTrays)
+    async (breadKey: string, boxIn: number, bakeTrays: number) => {
+      await upsertRecord(date, breadKey, boxIn, bakeTrays)
       await load()
     },
     [date, load],
   )
 
   const saveMany = useCallback(
-    async (entries: { breadKey: string; bagIn: number; bakeTrays: number }[]) => {
+    async (entries: { breadKey: string; boxIn: number; bakeTrays: number }[]) => {
       for (const entry of entries) {
-        await upsertRecord(date, entry.breadKey, entry.bagIn, entry.bakeTrays)
+        await upsertRecord(date, entry.breadKey, entry.boxIn, entry.bakeTrays)
       }
       await load()
     },
