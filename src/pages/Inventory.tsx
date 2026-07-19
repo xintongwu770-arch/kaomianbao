@@ -16,6 +16,9 @@ export default function Inventory() {
   const [edits, setEdits] = useState<Record<string, Edit>>({})
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  // 推荐烤量确认流程：先预览，确认后才填入；填入后可撤回
+  const [showRecommendPreview, setShowRecommendPreview] = useState(false)
+  const [undoSnapshot, setUndoSnapshot] = useState<Record<string, Edit> | null>(null)
 
   useEffect(() => {
     if (!loading && rows.length && Object.keys(edits).length === 0) {
@@ -48,7 +51,8 @@ export default function Inventory() {
     setMessage('已复制昨天的烤量，记得检查后保存。')
   }
 
-  const fillRecommended = () => {
+  const confirmFillRecommended = () => {
+    setUndoSnapshot(structuredClone(edits))
     setEdits((prev) => {
       const next = { ...prev }
       for (const r of rows) {
@@ -56,7 +60,15 @@ export default function Inventory() {
       }
       return next
     })
-    setMessage('已填入近7日平均推荐烤量，记得检查后保存。')
+    setShowRecommendPreview(false)
+    setMessage('已填入推荐烤量。如果填错了可以点"撤回填入"恢复，确认无误后记得保存。')
+  }
+
+  const undoFill = () => {
+    if (!undoSnapshot) return
+    setEdits(undoSnapshot)
+    setUndoSnapshot(null)
+    setMessage('已撤回，烤量恢复为填入前的数值。')
   }
 
   const saveAll = async () => {
@@ -92,13 +104,56 @@ export default function Inventory() {
             一键复制昨天烤量
           </button>
           <button
-            onClick={fillRecommended}
+            onClick={() => setShowRecommendPreview(true)}
             className="text-sm px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             填入近7日推荐烤量
           </button>
+          {undoSnapshot && (
+            <button
+              onClick={undoFill}
+              className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-700 hover:bg-red-50"
+            >
+              撤回填入
+            </button>
+          )}
         </div>
       </div>
+
+      {showRecommendPreview && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+          <h3 className="font-semibold text-amber-900">推荐烤量预览（按近7日有烘烤日子的平均值）</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-1 text-sm">
+            {rows.map((r) => {
+              const recommended = Math.round(r.avg7)
+              const current = edits[r.key]?.bakeTrays ?? 0
+              return (
+                <div key={r.key} className="flex justify-between">
+                  <span className="text-slate-700">{r.name}</span>
+                  <span className={recommended !== current ? 'font-semibold text-amber-800' : 'text-slate-500'}>
+                    {current} → {recommended} 盘
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-amber-800">确认后会覆盖上面表格里当前的烤量数字（入库不受影响），填入后还可以撤回。</p>
+          <div className="flex gap-2">
+            <button
+              onClick={confirmFillRecommended}
+              className="text-sm px-4 py-1.5 rounded-md bg-amber-600 text-white font-medium hover:bg-amber-700"
+            >
+              确认填入
+            </button>
+            <button
+              onClick={() => setShowRecommendPreview(false)}
+              className="text-sm px-4 py-1.5 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {message && <p className="text-sm text-amber-700">{message}</p>}
 

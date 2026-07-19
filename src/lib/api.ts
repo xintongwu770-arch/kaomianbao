@@ -35,7 +35,8 @@ export async function fetchLatestStockBefore(breadKey: string, date: string): Pr
   return data && data.length > 0 ? data[0].stock_trays : 0
 }
 
-// 某个面包最近 N 条记录（严格早于 date）的烤量数组，用于算 7 天平均
+// 某个面包最近 N 条记录（严格早于 date）的烤量数组，用于算 7 天平均。
+// 只统计实际有烘烤的日子（烤量>0），避免进货日/空白日把平均值拉低导致预警失灵
 export async function fetchRecentBakeTrays(breadKey: string, date: string, days = 7): Promise<number[]> {
   const client = requireClient()
   const { data, error } = await client
@@ -43,6 +44,7 @@ export async function fetchRecentBakeTrays(breadKey: string, date: string, days 
     .select('bake_trays')
     .eq('bread_key', breadKey)
     .lt('record_date', date)
+    .gt('bake_trays', 0)
     .order('record_date', { ascending: false })
     .limit(days)
   if (error) throw error
