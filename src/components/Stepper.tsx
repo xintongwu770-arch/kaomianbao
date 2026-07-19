@@ -1,3 +1,5 @@
+import { useI18n } from '../lib/i18n'
+
 interface StepperProps {
   value: number
   onChange: (next: number) => void
@@ -5,13 +7,14 @@ interface StepperProps {
 }
 
 export default function Stepper({ value, onChange, min = 0 }: StepperProps) {
+  const { t } = useI18n()
   return (
     <div className="inline-flex items-center gap-1.5">
       <button
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 active:bg-slate-200 select-none"
-        aria-label="减少"
+        aria-label={t('aria_dec')}
       >
         −
       </button>
@@ -20,7 +23,7 @@ export default function Stepper({ value, onChange, min = 0 }: StepperProps) {
         type="button"
         onClick={() => onChange(value + 1)}
         className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 active:bg-slate-200 select-none"
-        aria-label="增加"
+        aria-label={t('aria_inc')}
       >
         +
       </button>

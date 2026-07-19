@@ -51,8 +51,13 @@ export function breakdownStock(totalTrays: number, bread: Bread): StockBreakdown
   return { boxes: sign * boxes, bags: sign * bags, trays: sign * trays }
 }
 
-export function formatStock(totalTrays: number, bread: Bread): string {
+// units: [箱, 袋, 盘] 的显示文字，默认中文；日文模式传入 ['箱','袋','トレー']
+export function formatStock(
+  totalTrays: number,
+  bread: Bread,
+  units: [string, string, string] = ['箱', '袋', '盘'],
+): string {
+  if (totalTrays < 0) return `-${formatStock(-totalTrays, bread, units)}`
   const { boxes, bags, trays } = breakdownStock(totalTrays, bread)
-  if (totalTrays < 0) return `-${formatStock(-totalTrays, bread)}`
-  return `${boxes}箱${bags}袋${trays}盘`
+  return `${boxes}${units[0]}${bags}${units[1]}${trays}${units[2]}`
 }

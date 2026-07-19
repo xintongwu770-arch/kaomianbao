@@ -1,11 +1,6 @@
 import type { WarningTier } from './types'
 
-export const WARNING_LABELS: Record<Exclude<WarningTier, null>, string> = {
-  day1: '不够用一天',
-  day2: '不够用两天',
-  day3: '还够用三天',
-}
-
+// 文案在 i18n 里（tier_day1/tier_day2/tier_day3），这里只放颜色样式
 // day1 最紧急（红），day2 中等（橙），day3 提醒（黄）
 export const WARNING_ROW_CLASS: Record<Exclude<WarningTier, null>, string> = {
   day1: 'bg-red-50',

@@ -3,6 +3,7 @@ import { BREADS, traysPerBox } from './breads'
 import type { BreadDayView, WarningTier } from './types'
 import {
   average,
+  fetchLatestBakeBefore,
   fetchLatestStockBefore,
   fetchRecentBakeTrays,
   fetchRecordsForDate,
@@ -10,9 +11,10 @@ import {
   upsertRecord,
 } from './api'
 
-function computeWarningTier(stockTrays: number, avg7: number): WarningTier {
-  if (avg7 <= 0) return null
-  const daysCoverage = stockTrays / avg7
+// 预警按最近一个有烘烤日子的烤量计算：天数 = 库存 ÷ 该日烤量
+function computeWarningTier(stockTrays: number, latestBake: number): WarningTier {
+  if (latestBake <= 0) return null
+  const daysCoverage = stockTrays / latestBake
   if (daysCoverage < 1) return 'day1'
   if (daysCoverage < 2) return 'day2'
   if (daysCoverage < 3) return 'day3'
@@ -32,16 +34,18 @@ export function useDayData(date: string = todayStr()) {
 
       const results = await Promise.all(
         BREADS.map(async (bread) => {
-          const [stockBefore, recentBakes] = await Promise.all([
+          const [stockBefore, recentBakes, latestBake] = await Promise.all([
             fetchLatestStockBefore(bread.key, date),
             fetchRecentBakeTrays(bread.key, date, 7),
+            fetchLatestBakeBefore(bread.key, date),
           ])
           const avg7 = average(recentBakes)
           const existing = todayRecords[bread.key]
           const boxIn = existing?.box_in ?? 0
           const bakeTrays = existing?.bake_trays ?? 0
+          const stockAdjust = existing?.stock_adjust ?? 0
           const stockTrays = existing ? existing.stock_trays : stockBefore
-          const warningTier = computeWarningTier(stockTrays, avg7)
+          const warningTier = computeWarningTier(stockTrays, latestBake)
           const target = avg7 * 3
           const shortfall = Math.max(0, target - stockTrays)
           const restockBoxes = Math.ceil(shortfall / traysPerBox(bread))
@@ -53,7 +57,9 @@ export function useDayData(date: string = todayStr()) {
             boxIn,
             bakeTrays,
             stockTrays,
+            stockAdjust,
             avg7,
+            latestBake,
             warningTier,
             restockBoxes,
           }
@@ -73,17 +79,17 @@ export function useDayData(date: string = todayStr()) {
   }, [load])
 
   const save = useCallback(
-    async (breadKey: string, boxIn: number, bakeTrays: number) => {
-      await upsertRecord(date, breadKey, boxIn, bakeTrays)
+    async (breadKey: string, boxIn: number, bakeTrays: number, stockAdjust = 0) => {
+      await upsertRecord(date, breadKey, boxIn, bakeTrays, stockAdjust)
       await load()
     },
     [date, load],
   )
 
   const saveMany = useCallback(
-    async (entries: { breadKey: string; boxIn: number; bakeTrays: number }[]) => {
+    async (entries: { breadKey: string; boxIn: number; bakeTrays: number; stockAdjust: number }[]) => {
       for (const entry of entries) {
-        await upsertRecord(date, entry.breadKey, entry.boxIn, entry.bakeTrays)
+        await upsertRecord(date, entry.breadKey, entry.boxIn, entry.bakeTrays, entry.stockAdjust)
       }
       await load()
     },

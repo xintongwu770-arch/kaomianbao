@@ -7,10 +7,36 @@ create table if not exists daily_records (
   box_in integer not null default 0, -- 今日入库（箱，1箱=4袋）
   bake_trays integer not null default 0, -- 今日烤量（盘）
   stock_trays integer not null default 0, -- 结算库存（盘，内部最小单位，显示时换算成 箱+袋+盘）
+  stock_adjust integer not null default 0, -- 盘点调整量（盘），库存 = 昨日 + 入库 - 烤量 + 调整
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (record_date, bread_key)
 );
+
+-- 盘点调整日志
+create table if not exists stock_adjustments (
+  id uuid primary key default gen_random_uuid(),
+  record_date date not null,
+  bread_key text not null,
+  old_trays integer not null,
+  new_trays integer not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists stock_adjustments_date_idx
+  on stock_adjustments (record_date desc);
+
+alter table stock_adjustments enable row level security;
+
+drop policy if exists "anyone can read stock_adjustments" on stock_adjustments;
+create policy "anyone can read stock_adjustments"
+  on stock_adjustments for select
+  using (true);
+
+drop policy if exists "anyone can insert stock_adjustments" on stock_adjustments;
+create policy "anyone can insert stock_adjustments"
+  on stock_adjustments for insert
+  with check (true);
 
 create index if not exists daily_records_bread_date_idx
   on daily_records (bread_key, record_date desc);
